@@ -1,110 +1,130 @@
 #include <iostream>
 #include <string>
-#include <ctime>
-#include <cstdlib>
-#include <filesystem>
+using namespace std;
 
 struct FileNode {
-    std::string fileName;
-    size_t fileSize;
-    std::time_t modificationTime;
+    string fileName;
+    long long fileSize;       
+    int h, m, s;
     FileNode* next;
-
-    FileNode(std::string name, size_t size, std::time_t time)
-        : fileName(name), fileSize(size), modificationTime(time), next(nullptr) {}
+    FileNode(const string& name, long long size, int hours, int minutes, int seconds) 
+        : fileName(name), fileSize(size), h(hours), m(minutes), s(seconds), next(0) {}
 };
 
-struct FileLinkedList {
-    FileNode* head;
 
-    FileLinkedList() : head(nullptr) {}
+struct Folder {
+    FileNode* head = 0; 
+};
 
-    void insertFileSorted(const std::string& name, size_t size, std::time_t time) {
-        FileNode* newNode = new FileNode(name, size, time);
-        if (!head || difftime(head->modificationTime, time) > 0) {
-            newNode->next = head;
-            head = newNode;
-        } else {
-            FileNode* current = head;
-            while (current->next && difftime(current->next->modificationTime, time) < 0) {
-                current = current->next;
-            }
-            newNode->next = current->next;
-            current->next = newNode;
-        }
+void insertFile(Folder& folder, const string& name, long long size, int h, int m, int s) {
+    FileNode* newFile = new FileNode(name,size,h,m,s);
+    if (folder.head == 0) {
+        folder.head = newFile; 
+        return;
     }
 
-    size_t getTotalSize() const {
-        size_t totalSize = 0;
-        FileNode* current = head;
-        while (current) {
-            totalSize += current->fileSize;
-            current = current->next;
-        }
-        return totalSize;
+    FileNode* current = folder.head;
+    while (current->next != 0) {
+        current = current->next;
     }
+    current->next = newFile;
+}
 
-    void trimToSize(size_t maxSize) {
-        while (getTotalSize() > maxSize) {
-            FileNode* minNode = head;
-            FileNode* minPrev = nullptr;
-            FileNode* current = head;
-            FileNode* prev = nullptr;
-            while (current) {
-                if (current->fileSize < minNode->fileSize) {
-                    minNode = current;
-                    minPrev = prev;
+void sort(Folder& folder) {
+    if (!folder.head || !folder.head->next) return; 
+
+    int kt;
+    do {
+        kt = 0;
+        FileNode* current = folder.head;
+        FileNode* p = 0;
+
+        while (current && current->next) {
+            if (current->fileSize > current->next->fileSize) {
+                FileNode* t = current->next;
+                current->next = t->next;
+                t->next = current;
+
+                if (p) {
+                    p->next = t;
+                } else {
+                    folder.head = t; 
                 }
-                prev = current;
+
+                kt = 1;
+                p = t; 
+            } else {
+                p = current;
                 current = current->next;
             }
-            if (minPrev) {
-                minPrev->next = minNode->next;
-            } else {
-                head = minNode->next;
-            }
-            delete minNode;
         }
-    }
+    } while (kt==0);
+}
 
-    void printList() const {
-        FileNode* current = head;
-        while (current) {
-            std::cout << "File: " << current->fileName << ", Size: " << current->fileSize 
-                      << " bytes, Modified: " << std::ctime(&current->modificationTime);
-            current = current->next;
-        }
+void printFiles(const Folder& folder) {
+    FileNode* current = folder.head;
+    while (current != 0) {
+        cout << "File: " << current->fileName
+             << ", Size: " << current->fileSize
+             << " bytes, Created Time: " << current->h << ":" << current->m << ":" << current->s << endl;
+        current = current->next;
     }
-};
+}
 
-void copyFileAndInsertSorted(FileLinkedList& list, const std::string& source, const std::string& destination, size_t size, std::time_t time) {
-    #ifdef _WIN32
-        std::system(("copy " + source + " " + destination).c_str());
-    #else
-        std::system(("cp " + source + " " + destination).c_str());
-    #endif
-    list.insertFileSorted(destination, size, time);
+void freeList(FileNode* head) {
+    while (head) {
+        FileNode* t = head;
+        head = head->next;
+        delete t;
+    }
+}
+
+void nhap(Folder& folder) {
+    string c;
+    do {
+        string name;
+        long long size;
+        int h, m, s;
+
+        cout << "File name (without extension): ";
+        cin.ignore();
+        getline(cin, name);
+        cout << "File size (in bytes): ";
+        cin >> size;
+        cout << "Creation time (h m s): ";
+        cin >> h >> m >> s;
+
+        insertFile(folder, name + ".txt", size, h, m, s);
+
+        cout << "Tiep tuc (y/n): ";
+        cin >> c;
+    } while (c == "y");
+}
+
+void del(Folder& folder)
+{
+	FileNode happ;
 }
 
 int main() {
-    FileLinkedList fileList;
+    string c = "y";
+    while (c == "y") {
+        Folder folder; 
+        nhap(folder);
 
-    fileList.insertFileSorted("file1.txt", 1000, std::time(nullptr) - 100);
-    fileList.insertFileSorted("file2.txt", 2000, std::time(nullptr) - 200);
-    fileList.insertFileSorted("file3.txt", 500, std::time(nullptr) - 50);
+        cout << "Danh sach file trong folder:\n";
+        printFiles(folder);
 
-    std::cout << "Current file list:\n";
-    fileList.printList();
+        sort(folder);
+        cout << "Danh sach file sau khi xoa:\n";
+        printFiles(folder);
 
-    copyFileAndInsertSorted(fileList, "source_file.txt", "destination_file.txt", 1500, std::time(nullptr) - 150);
+        freeList(folder.head);
+        folder.head = 0;
 
-    std::cout << "\nFile list after copying:\n";
-    fileList.printList();
-
-    fileList.trimToSize(static_cast<size_t>(32) * 1024 * 1024 * 1024);
-
-    std::cout << "\nFile list after trimming to 32GB:\n";
-    fileList.printList();
+        cout << "Them file (y/n): ";
+        cin >> c;
+    }
 
     return 0;
 }
