@@ -12,7 +12,7 @@ typedef struct Node {
 
 // Tạo một node mới
 Node* createNode(const char* title, int pages) {
-    Node* newNode = (Node*)malloc(sizeof(Node));
+    Node* newNode = (Node*)malloc(sizeof(Node));hh
     strcpy(newNode->title, title);
     newNode->pages = pages;
     newNode->firstChild = NULL;
